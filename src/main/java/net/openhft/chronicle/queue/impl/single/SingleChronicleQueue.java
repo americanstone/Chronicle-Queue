@@ -781,9 +781,9 @@ public class SingleChronicleQueue extends AbstractCloseable implements RollingCh
     }
 
     void cleanupStoreFilesWithNoData() {
-        writeLock.lock();
 
-        try {
+
+
             int cycle = cycle();
             for (int lastCycle = lastCycle(); lastCycle < cycle && lastCycle >= 0; lastCycle--) {
                 try (final SingleChronicleQueueStore store = this.pool.acquire(lastCycle, epoch(), false, null)) {
@@ -794,10 +794,12 @@ public class SingleChronicleQueue extends AbstractCloseable implements RollingCh
                         // couldn't delete? Let's try writing EOF
                         // if this blows up we should blow up too so don't catch anything
                         MappedBytes bytes = store.bytes();
+                        writeLock.lock();
                         try {
                             store.writeEOFAndShrink(wireType.apply(bytes), timeoutMS);
                         } finally {
                             bytes.releaseLast();
+                            writeLock.unlock();
                         }
                         continue;
                     }
@@ -806,9 +808,7 @@ public class SingleChronicleQueue extends AbstractCloseable implements RollingCh
             }
             directoryListing.refresh(true);
             firstAndLastCycleTime = 0;
-        } finally {
-            writeLock.unlock();
-        }
+
     }
 
     @Override
